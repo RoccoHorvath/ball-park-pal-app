@@ -18,6 +18,8 @@ public class BatterProp {
     private Integer fd;
     @JsonProperty("dk")
     private Integer dk;
+    @JsonProperty("betName")
+    private String betName;
 
     private double expectedValue;
     private double betSize;

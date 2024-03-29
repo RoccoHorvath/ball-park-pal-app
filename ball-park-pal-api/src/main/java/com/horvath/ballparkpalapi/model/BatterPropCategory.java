@@ -10,13 +10,13 @@ import java.util.List;
 @Setter
 public class BatterPropCategory {
 
-    @JsonProperty("O Hits 0.5")
+    @JsonProperty("Hits")
     private List<BatterProp> hits;
 
-    @JsonProperty("O HR 0.5")
+    @JsonProperty("Home Runs")
     private List<BatterProp> homeruns;
 
-    @JsonProperty("O Bases 1.5")
+    @JsonProperty("Bases")
     private List<BatterProp> bases;
 
 }

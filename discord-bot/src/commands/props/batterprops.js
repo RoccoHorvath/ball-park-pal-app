@@ -12,14 +12,15 @@ async function fetchDataFromAPI() {
 }
 
 function createTable(jsonData) {
-  const embed = new EmbedBuilder().setTitle('O Hits 0.5').setColor('#0099ff');
-  const embed2 = new EmbedBuilder().setTitle('O HR 0.5').setColor('#0099ff');
-  const embed3 = new EmbedBuilder().setTitle('O Bases 1.5').setColor('#0099ff');
-
-  jsonData['O Hits 0.5'].forEach((player) => {
+  const embed = new EmbedBuilder().setTitle('Hits').setColor('#0099ff');
+  const embed2 = new EmbedBuilder().setTitle('Home Runs').setColor('#0099ff');
+  const embed3 = new EmbedBuilder().setTitle('Bases').setColor('#0099ff');
+  count = 0
+  jsonData['Hits'].forEach((player) => {
+    if(count==20){return}
     embed.addFields({
       name: player.playerName,
-      value: `BP: ${player.bp}  |  FD: ${
+      value: `O ${player.betName} - BP: ${player.bp}  |  FD: ${
         player.fd ? player.fd : '---'
       }  | DK: ${
         player.dk ? player.dk : '---'
@@ -27,12 +28,15 @@ function createTable(jsonData) {
         2
       )}%  |  Bet Size: ${player.betSize.toFixed(2)} units`,
     });
+    count++
   });
 
-  jsonData['O HR 0.5'].forEach((player) => {
+  count = 0
+  jsonData['Home Runs'].forEach((player) => {
+    if(count==20){return}
     embed2.addFields({
       name: player.playerName,
-      value: `BP: ${player.bp}  |  FD: ${
+      value: `O ${player.betName} - BP: ${player.bp}  |  FD: ${
         player.fd ? player.fd : '---'
       }  | DK: ${
         player.dk ? player.dk : '---'
@@ -40,12 +44,15 @@ function createTable(jsonData) {
         2
       )}%  |  Bet Size: ${player.betSize.toFixed(2)} units`,
     });
+    count++
   });
 
-  jsonData['O Bases 1.5'].forEach((player) => {
+  count = 0
+  jsonData['Bases'].forEach((player) => {
+    if(count==20){return}
     embed3.addFields({
       name: player.playerName,
-      value: `BP: ${player.bp}  |  FD: ${
+      value: `O ${player.betName} - BP: ${player.bp}  |  FD: ${
         player.fd ? player.fd : '---'
       }  | DK: ${
         player.dk ? player.dk : '---'
@@ -53,6 +60,7 @@ function createTable(jsonData) {
         2
       )}%  |  Bet Size: ${player.betSize.toFixed(2)} units`,
     });
+    count++
   });
 
   return [embed, embed2, embed3];

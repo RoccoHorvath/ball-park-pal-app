@@ -9,6 +9,8 @@ import lombok.Setter;
 @Setter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PitcherProp {
+    @JsonProperty("playerName")
+    private String playerName;
     @JsonProperty("betName")
     private String betName;
     @JsonProperty("bp")
