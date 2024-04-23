@@ -1,23 +1,34 @@
 package com.horvath.ballparkpalapi.controller;
 
-import com.horvath.ballparkpalapi.model.BatterPropCategory;
-import com.horvath.ballparkpalapi.model.PitcherData;
-import com.horvath.ballparkpalapi.service.PropsService;
+import com.horvath.ballparkpalapi.model.Prop;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+import static com.horvath.ballparkpalapi.service.PropsService.*;
 
 @RestController
 public class PropsController {
 
     @GetMapping("/api/batterProps")
-    public BatterPropCategory getBatterProps() throws IOException {
-        return PropsService.createBatterPropsFromJSON();
+    public Map<String, List<Prop>> getBatterProp(@RequestParam(required = false) String prop, @RequestParam(required = false) String team, @RequestParam(required = false) String book) throws IOException {
+        if(prop==null) {
+            return createBatterProps(team,book);
+        }
+        return createBatterProp(prop,team,book);
     }
 
     @GetMapping("/api/pitcherProps")
-    public PitcherData getPitcherProps() throws IOException {
-        return PropsService.createPitcherPropsFromJSON();
+    public Map<String, Map<String, List<Prop>>> getPitcherProps(@RequestParam(required = false) String prop, @RequestParam(required = false) String team, @RequestParam(required = false) String book) throws IOException {
+        if(prop==null) {
+            return createPitcherProps(team, book);
+        }
+        return createPitcherProp(prop,team,book);
     }
+
+
 }

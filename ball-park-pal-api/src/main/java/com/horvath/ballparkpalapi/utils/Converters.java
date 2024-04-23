@@ -57,14 +57,4 @@ public class Converters {
         return 1-(100/americanOddsDouble);
     }
 
-    public static int findBestOdds(Integer FDodds, Integer DKodds){
-        if(FDodds != null && DKodds != null){
-            return FDodds > DKodds? FDodds : DKodds;
-        }
-        if(FDodds == null){
-            return DKodds;
-        }
-        return FDodds;
-    }
-
 }

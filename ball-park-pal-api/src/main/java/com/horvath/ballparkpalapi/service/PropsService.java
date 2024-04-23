@@ -1,74 +1,141 @@
 package com.horvath.ballparkpalapi.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.horvath.ballparkpalapi.model.BatterProp;
-import com.horvath.ballparkpalapi.model.BatterPropCategory;
-import com.horvath.ballparkpalapi.model.PitcherData;
-import com.horvath.ballparkpalapi.model.PitcherProp;
+import com.horvath.ballparkpalapi.model.Prop;
 import com.horvath.ballparkpalapi.utils.Converters;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PropsService {
     private static ObjectMapper objectMapper = new ObjectMapper();
-    private final static File BATTER_PROPS_JSON_PATH = new File(System.getenv("BATTER_PROPS_JSON_PATH"));
-    private final static File PITCHER_PROPS_JSON_PATH = new File(System.getenv("PITCHER_PROPS_JSON_PATH"));
+    private final static String PROPS_JSON_PATH = System.getenv("PROPS_JSON_PATH");
 
-    public static BatterPropCategory createBatterPropsFromJSON() throws IOException {
-        BatterPropCategory batterPropCategory = objectMapper.readValue(BATTER_PROPS_JSON_PATH, BatterPropCategory.class);
-        setEVandBetSize(batterPropCategory.getHits());
-        setEVandBetSize(batterPropCategory.getHomeruns());
-        setEVandBetSize(batterPropCategory.getBases());
-        return batterPropCategory;
+    private final static Map<String, File> batterFiles = new HashMap<>() {{
+        put("Hits", new File(PROPS_JSON_PATH+"Hits.json"));
+        put("Home Runs", new File(PROPS_JSON_PATH+"Home Runs.json"));
+        put("Bases", new File(PROPS_JSON_PATH+"Bases.json"));
+        put("Stolen Bases", new File(PROPS_JSON_PATH+"Stolen Bases.json"));
+    }};
+
+    private final static Map<String, File> pitcherFiles = new HashMap<>() {{
+        put("Strikeouts", new File(PROPS_JSON_PATH+"Strikeouts.json"));
+        put("Hits Allowed", new File(PROPS_JSON_PATH+"Hits Allowed.json"));
+    }};
+
+
+    public static List<Prop> createProp(File file, String team, String book) throws IOException{
+        List<Prop> props = objectMapper.readValue(file, new TypeReference<List<Prop>>() {
+        });
+
+        if(team!=null){
+            props = filterByTeam(props,team);
+        }
+        if(book!=null){
+            props = filterByBook(props,book);
+            setEVandBetSize(props,book);
+        }else{
+            setEVandBetSize(props);
+        }
+        return props;
+    }
+    public static Map<String,List<Prop>> createBatterProps(String team, String book) throws IOException{
+
+        Map<String,List<Prop>> propsMap  = new HashMap<>();
+
+        for (Map.Entry<String, File> entry : batterFiles.entrySet()) {
+            String prop = entry.getKey();
+            File file = entry.getValue();
+            propsMap.put(prop, createProp(file, team, book));
+        }
+        return propsMap;
     }
 
-    public static void setEVandBetSize(List<BatterProp> batterProps){
-        for (BatterProp batterProp : batterProps) {
-            int bestOdds = Converters.findBestOdds(batterProp.getFd(), batterProp.getDk());
-            double BPImpliedProbability = Converters.convertToImpliedProbability(batterProp.getBp());;
+    public static Map<String,Map<String,List<Prop>>> createPitcherProps(String team, String book) throws IOException{
+        Map<String,Map<String,List<Prop>>> propsMap  = new HashMap<>();
+
+        for (Map.Entry<String, File> entry : pitcherFiles.entrySet()) {
+            String prop = entry.getKey();
+            File file = entry.getValue();
+            propsMap.put(prop, createPitcherPropMap(createProp(file,team,book)));
+        }
+        return propsMap;
+    }
+
+    public static Map<String,Map<String,List<Prop>>> createPitcherProp(String prop, String team, String book) throws IOException {
+        return new HashMap<>() {{
+            put(prop,createPitcherPropMap(createProp(pitcherFiles.get(prop),team,book)));
+        }};
+    }
+
+    public static Map<String, List<Prop>> createPitcherPropMap(List<Prop> pitcherProps) throws IOException {
+        Map<String, List<Prop>> propsMap = pitcherProps.stream()
+                .collect(Collectors.groupingBy(Prop::getPlayerName));
+
+        propsMap.forEach((playerName, batterProps) ->
+                batterProps.sort(Comparator.comparingDouble(Prop::getExpectedValue)));
+
+        return propsMap;
+    }
+
+
+
+    public static void setEVandBetSize(List<Prop> props, String book){
+        for (Prop prop : props) {
+            int bestOdds = book==null? prop.getBestOdds(): prop.getBooks().get(book);
+            double BPImpliedProbability = Converters.convertToImpliedProbability(prop.getBp());;
             double bestSportsbookImpliedProbability = Converters.convertToImpliedProbability(bestOdds);
             double winProb = Converters.calculateWinProbability(BPImpliedProbability, bestSportsbookImpliedProbability);
             double loseProb = 1 - winProb;
             double decimalOdds = Converters.convertToDecimalOdds(bestOdds);
             double profit = Converters.calculateProfit(bestOdds);
 
-            batterProp.setBetSize(Converters.calculateBetSize(decimalOdds, winProb, loseProb));
-            batterProp.setExpectedValue(Converters.calculateExpectedValue(winProb, loseProb, profit));
+            prop.setBetSize(Converters.calculateBetSize(decimalOdds, winProb, loseProb));
+            prop.setExpectedValue(Converters.calculateExpectedValue(winProb, loseProb, profit));
         }
-        Comparator<BatterProp> comparator = Comparator.comparing(BatterProp::getExpectedValue,Comparator.reverseOrder());
-        batterProps.sort(comparator);
+        Comparator<Prop> comparator = Comparator.comparing(Prop::getBetSize,Comparator.reverseOrder());
+        props.sort(comparator);
         }
+    public static void setEVandBetSize(List<Prop> props){
+        setEVandBetSize(props,null);
+    }
 
-    public static PitcherData createPitcherPropsFromJSON() throws IOException {
-        PitcherData pitcherData = objectMapper.readValue(PITCHER_PROPS_JSON_PATH, PitcherData.class);
 
-        for (Map.Entry<String, List<PitcherProp>> entry : pitcherData.getPitchers().entrySet()) {
-            List<PitcherProp> props = entry.getValue();
-            for (PitcherProp prop : props) {
-                setEVandBetSize(prop);
+
+    public static Map<String, List<Prop>> createBatterProp(String prop, String team, String book) throws IOException {
+        return new HashMap<>() {{
+            put(prop,createProp(batterFiles.get(prop),team,book));
+        }};
+    }
+
+
+
+
+    public static List<Prop> filterByTeam(List<Prop> props, String team){
+        List<Prop> filteredList = new ArrayList<>();
+        for (Prop prop : props) {
+            if (prop.getTeam().equals(team) || prop.getOpponent().equals(team)) {
+                filteredList.add(prop);
             }
-            Comparator<PitcherProp> comparator = Comparator.comparing(PitcherProp::getExpectedValue,Comparator.reverseOrder());
-            props.sort(comparator);
         }
-        return pitcherData;
+        return filteredList;
     }
 
-    public static void setEVandBetSize(PitcherProp pitcherProp){
-        int bestOdds = Converters.findBestOdds(pitcherProp.getFd(), pitcherProp.getDk());
-        double BPImpliedProbability = Converters.convertToImpliedProbability(pitcherProp.getBp());;
-        double bestSportsbookImpliedProbability = Converters.convertToImpliedProbability(bestOdds);
-        double winProb = Converters.calculateWinProbability(BPImpliedProbability, bestSportsbookImpliedProbability);
-        double loseProb = 1 - winProb;
-        double decimalOdds = Converters.convertToDecimalOdds(bestOdds);
-        double profit = Converters.calculateProfit(bestOdds);
+    public static List<Prop> filterByBook(List<Prop> props, String book) {
+        List<Prop> filteredList = new ArrayList<>();
 
-        pitcherProp.setBetSize(Converters.calculateBetSize(decimalOdds, winProb, loseProb));
-        pitcherProp.setExpectedValue(Converters.calculateExpectedValue(winProb, loseProb, profit));
+        for (Prop prop : props) {
+            if (prop.isBookNotNull(book)) {
+                filteredList.add(prop);
+            }
+        }
+        return filteredList;
     }
+
+
 }

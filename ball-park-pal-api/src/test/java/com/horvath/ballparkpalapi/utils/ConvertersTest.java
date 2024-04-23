@@ -68,21 +68,4 @@ class ConvertersTest {
         assertEquals(2.5,odds,.01);
     }
 
-    @Test
-    void findBestOddsNoNull() {
-        int bestOdds = Converters.findBestOdds(120,140);
-        assertEquals(140, bestOdds);
-    }
-
-    @Test
-    void findBestOddsFDNull() {
-        int bestOdds = Converters.findBestOdds(null,160);
-        assertEquals(160, bestOdds);
-    }
-
-    @Test
-    void findBestOddsDKNull() {
-        int bestOdds = Converters.findBestOdds(-320,null);
-        assertEquals(-320, bestOdds);
-    }
 }
