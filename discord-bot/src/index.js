@@ -1,6 +1,9 @@
-require('dotenv').config();
+require('dotenv/config');
+const games = require('../../python-scripts/Games.json');
+
 const { Client, IntentsBitField } = require('discord.js');
-const eventHandler = require('./handlers/eventHandler');
+const { CommandKit } = require('commandkit');
+const { join } = require('path');
 
 const client = new Client({
   intents: [
@@ -11,6 +14,10 @@ const client = new Client({
   ],
 });
 
-eventHandler(client);
+new CommandKit({
+  client,
+  eventsPath: join(__dirname, 'events'),
+  commandsPath: join(__dirname, 'commands'),
+});
 
 client.login(process.env.TOKEN);
