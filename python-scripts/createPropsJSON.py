@@ -1,9 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
-from requests.auth import HTTPBasicAuth
 import json
 import os
-from time import sleep
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 login_url = 'https://www.ballparkpal.com/LogIn.php'
@@ -12,17 +10,18 @@ login_data = {
     'password': os.environ["BPPPASS"],
     'login': 'Login'
 }
+
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
 }
-batter_markets = {
+
+markets = {
     10: "Home Runs",
     13: "Hits",
     14: "Bases",
-}
-
-pitcher_markets = {
+    15: "Stolen Bases",
     20: "Strikeouts",
+    23: "Hits Allowed",
 }
 
 prop_url = 'https://www.ballparkpal.com/PlayerProps.php?BetSide=1&BetMarket='
@@ -38,66 +37,65 @@ def convertToInt(text):
         return None
 
 
-def getTRs(session,market):
+def getPageContent(session,market):
     page = session.get(f'{prop_url}{market}')
-    soup = BeautifulSoup(page.content, 'html.parser')
-    return soup.find_all('tr')
+    return BeautifulSoup(page.content, 'html.parser')
 
 
-def createProp(tr):
+def getBookHeaders(ths):
+    bookHeaders = []
+    for i in range(7,13):
+        bookHeaders.append(ths[i].text)
+    return bookHeaders
+
+
+def createProp(tr,bookHeaders):
+    goodBet = False
     tds = tr.find_all('td')
     
     if len(tds) < 6:
-        return None, None
+        return None
     bp = convertToInt(tds[6].text)
-    fd = convertToInt(tds[7].text)
-    dk = convertToInt(tds[8].text)
+    allBooks = {}
+    for i, book in enumerate(bookHeaders):
+        allBooks[book] = convertToInt(tds[7+i].text)
+    
     if bp:
-        prop = {'bp': bp}
-        if fd and bp < fd:
-            prop['fd'] = fd
+        prop = {'bp': bp,'books':{}}
+        for book, odds in allBooks.items():
+            if odds and odds > bp:
+                prop['books'][book] = odds
+                goodBet = True
 
-        if dk and bp < dk:
-            prop['dk'] = dk
-        
-        if 'fd' in prop or 'dk' in prop:
-            playerName = tds[1].text
-            prop['playerName'] = playerName
-            prop['betName'] = tds[5].text
-            return prop, playerName
+        if goodBet:
+            team = tds[0].text.strip()
+            prop['team'] = team
+            prop['playerName'] = tds[1].text
+            prop['line'] = tds[5].text
+            prop['opponent'] = tds[2].text.strip()
+            return prop
 
-    return None, None     
+    return None     
+
 
 session = requests.Session()
 session.post(login_url, data=login_data)
 
-batterProps = {}
-for market in batter_markets.keys():
-    trs = getTRs(session,market)
-    betName = batter_markets.get(market)
-    batterProps[betName] = []
+for market in markets.keys():
+    betName = markets.get(market)
+    
+    soup = getPageContent(session,market)
+    trs = soup.find_all('tr')
+    bookHeaders = getBookHeaders(soup.find_all('th'))
 
+    props = []
     for tr in trs:
-        prop, playerName = createProp(tr)
+        prop = createProp(tr,bookHeaders)
         if prop:
-            if market == 13 and prop["betName"] == "1.5":
+            if market == 13 and prop["line"] == "1.5":
                 continue
-            batterProps[betName].append(prop)
+            prop['betName'] = betName
+            props.append(prop)
 
-with open("batterProps.json", 'w') as fp:
-    json.dump(batterProps, fp)
-
-
-pitcherProps = {'pitchers': {}}
-for market in pitcher_markets.keys():
-    trs = getTRs(session,market)
-    betName = pitcher_markets.get(market)
-    for tr in trs:
-        prop, playerName = createProp(tr)
-        if prop:
-            if playerName not in pitcherProps['pitchers']:
-                pitcherProps['pitchers'][playerName] = [] 
-            pitcherProps['pitchers'][playerName].append(prop)
-
-with open("pitcherProps.json", 'w') as fp:
-    json.dump(pitcherProps, fp)
+    with open(f'{betName}.json', 'w') as fp:
+        json.dump(props, fp)
